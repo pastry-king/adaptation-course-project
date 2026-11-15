@@ -150,11 +150,12 @@ def _report(name, cfg, months, values, split, screen, final, baseline_rows, next
     for r in sorted(predictions, key=lambda r: abs(float(r["actual_mln_rub"]) - float(r["lstm_mln_rub"])), reverse=True)[:3]:
         actual, pred = float(r["actual_mln_rub"]), float(r["lstm_mln_rub"])
         lines.append(f"| {r['month']} | {actual:,.0f} | {pred:,.0f} | {abs(actual - pred):,.0f} |")
-    lines.extend(["", "## Следующий ещё не опубликованный месяц", "",
+    lines.extend(["", "## Прогноз на месяц после конца локального ряда", "",
                   f"{next_rows[0]['month']}: LSTM по seed = " + ", ".join(f"{r['seed']}: {r['forecast_mln_rub']:,.0f}" for r in next_rows)
                   + " млн руб. Ориентир «прошлый год»: " + f"{values[-12]:,.0f}; "
                   + "ориентир «прошлый месяц»: " + f"{values[-1]:,.0f} млн руб. "
-                  "Это прогноз **одного** месяца, не проверенный факт.", "",
+                   "Это прогноз **одного** месяца, для которого в использованном CSV нет факта; "
+                   "перед использованием сверьте его с актуальной публикацией ЦБ.", "",
                   "**Ограничение:** архивные данные до 2019 года восстановлены из накопленных итогов; "
                   "сопоставимость со сменившейся методикой и влияние валютной переоценки не доказаны. "
                   f"Сравните вывод с [`{'current_only' if name == 'full' else 'full'}`](../{'current_only' if name == 'full' else 'full'}/README.md) "

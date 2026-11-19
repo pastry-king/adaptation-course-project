@@ -1,0 +1,187 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light">
+  <title>Эксперимент {{ report.experiment_id }} — прогноз потребления</title>
+  <style>
+    :root {
+      color-scheme: light;
+      font-family: "Segoe UI", Inter, system-ui, sans-serif;
+      color: #172941;
+      background: #f2f5fa;
+      font-variant-numeric: tabular-nums;
+    }
+    * { box-sizing: border-box; }
+    body { margin: 0; line-height: 1.55; }
+    .hero {
+      background: linear-gradient(115deg, #142c4d, #1b567b 68%, #247f91);
+      color: white;
+      padding: 54px max(24px, calc((100vw - 1120px) / 2));
+    }
+    .eyebrow { margin: 0 0 12px; color: #a9e5e0; font-size: .77rem; font-weight: 700; letter-spacing: .12em; text-transform: uppercase; }
+    h1 { margin: 0; font-size: clamp(1.8rem, 4vw, 2.75rem); line-height: 1.15; }
+    .hero p:last-child { margin-bottom: 0; color: #dfedf6; }
+    .tags { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 20px; }
+    .tag { padding: 6px 12px; border: 1px solid #93c5d488; border-radius: 999px; font-size: .85rem; }
+    main { max-width: 1168px; margin: -20px auto 64px; padding: 0 24px; position: relative; }
+    .grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 18px; }
+    .card { background: white; border: 1px solid #dde5ed; border-radius: 16px; padding: 25px; margin-bottom: 18px; box-shadow: 0 8px 25px #2039570c; }
+    .grid .card { margin: 0; }
+    h2 { margin: 0 0 16px; font-size: 1.15rem; letter-spacing: -.02em; }
+    h3 { margin: 20px 0 10px; font-size: .98rem; }
+    p { margin: 0 0 12px; }
+    .muted, figcaption, footer { color: #536780; }
+    .lead { font-size: 1.06rem; }
+    dl { display: grid; grid-template-columns: minmax(130px, 42%) 1fr; gap: 9px 14px; margin: 0; }
+    dt { color: #536780; }
+    dd { margin: 0; overflow-wrap: anywhere; font-weight: 550; }
+    .section-label { margin: 32px 0 14px; color: #49617b; font-size: .84rem; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; }
+    .table-wrap { overflow-x: auto; }
+    table { width: 100%; border-collapse: collapse; text-align: left; }
+    th, td { padding: 12px 14px; border-bottom: 1px solid #e8edf2; white-space: nowrap; }
+    th { background: #f5f8fb; color: #415872; font-weight: 650; font-size: .86rem; }
+    tbody tr:last-child td, tbody tr:last-child th { border-bottom: 0; }
+    tbody tr:hover { background: #f6fafc; }
+    td.numeric { text-align: right; }
+    .model-name { font-weight: 650; }
+    .accent { border-left: 4px solid #16838a; }
+    figure { margin: 0; }
+    figure + figure { margin-top: 26px; }
+    figure img { display: block; width: 100%; height: auto; border: 1px solid #e0e8ee; border-radius: 10px; }
+    figcaption { margin-top: 9px; font-size: .9rem; }
+    a { color: #095b83; }
+    footer { max-width: 1120px; margin: 0 auto 32px; padding: 0 24px; font-size: .85rem; }
+    @media (max-width: 720px) { .grid { grid-template-columns: 1fr; } .hero { padding-top: 40px; padding-bottom: 55px; } main { padding: 0 14px; } .card { padding: 18px; } }
+    @media print { :root { background: white; } .hero { background: #142c4d; print-color-adjust: exact; } main { margin-top: 20px; } .card { box-shadow: none; break-inside: avoid; } }
+  </style>
+</head>
+<body data-schema-version="{{ report.schema_version }}" data-experiment-id="{{ report.experiment_id }}">
+  <header class="hero">
+    <p class="eyebrow">Прогнозирование временного ряда · LSTM</p>
+    <h1>Эксперимент {{ report.experiment_id }}</h1>
+    <p>Потребление электроэнергии одного анонимного потребителя · прогноз на следующий час</p>
+    <div class="tags">
+      <span class="tag">{{ report.status }}</span>
+      <span class="tag">{{ report.dataset.target_unit }} за час</span>
+      <span class="tag">Окно {{ report.configuration.window_size }} ч</span>
+      <span class="tag"><time datetime="{{ report.created_at }}">{{ report.created_at }}</time></span>
+    </div>
+  </header>
+
+  <main>
+    <section class="card accent" aria-labelledby="goal-title">
+      <h2 id="goal-title">Цель и гипотеза</h2>
+      <p class="lead">{{ report.hypothesis }}</p>
+      <p class="muted">Изменяемый фактор: {{ report.changed_factor }} = {{ report.factor_level }}. Фиксированные условия: {{ report.controlled_conditions }}.</p>
+    </section>
+
+    <div class="grid">
+      <section class="card" aria-labelledby="data-title">
+        <h2 id="data-title">Данные и единицы</h2>
+        <dl>
+          <dt>Набор / версия</dt><dd>{{ report.dataset.name }} · OpenML {{ report.dataset.id }}, v{{ report.dataset.version }}</dd>
+          <dt>Потребитель</dt><dd>{{ report.dataset.series_column }}</dd>
+          <dt>Исходный период</dt><dd>{{ report.dataset.source_start }} — {{ report.dataset.source_end }}</dd>
+          <dt>Исходные значения</dt><dd>{{ report.dataset.source_frequency }} · {{ report.dataset.source_unit }}</dd>
+          <dt>Цель (ось Y)</dt><dd>{{ report.dataset.target_unit }} за {{ report.dataset.target_frequency }}</dd>
+          <dt>Ось X / время</dt><dd>Дата и час · {{ report.dataset.time_zone }}</dd>
+        </dl>
+        <h3>Подготовка данных</h3>
+        <p>{{ report.dataset.preprocessing }}</p>
+        <p class="muted">Нормализация: {{ report.configuration.scaler }}; её параметры рассчитаны только по обучающему периоду.</p>
+      </section>
+
+      <section class="card" aria-labelledby="settings-title">
+        <h2 id="settings-title">Настройки LSTM</h2>
+        <dl>
+          <dt>Размер окна</dt><dd>{{ report.configuration.window_size }} часов</dd>
+          <dt>Слои / нейроны</dt><dd>{{ report.configuration.num_layers }} / {{ report.configuration.hidden_size }}</dd>
+          <dt>Dropout</dt><dd>{{ report.configuration.dropout }}</dd>
+          <dt>Оптимизатор / LR</dt><dd>{{ report.configuration.optimizer }} / {{ report.configuration.learning_rate }}</dd>
+          <dt>Batch size</dt><dd>{{ report.configuration.batch_size }}</dd>
+          <dt>Лимит эпох / patience</dt><dd>{{ report.configuration.max_epochs }} / {{ report.configuration.patience }}</dd>
+          <dt>Seed / устройство</dt><dd>{{ report.configuration.seed }} / {{ report.configuration.device }}</dd>
+          <dt>Факт / лучшая эпоха</dt><dd>{{ report.training.epochs_run }} / {{ report.training.best_epoch }}</dd>
+          <dt>Лучшая ошибка validation</dt><dd>{{ report.training.best_validation_loss }}</dd>
+          <dt>Время выполнения</dt><dd>{{ report.training.elapsed_seconds }} с</dd>
+        </dl>
+      </section>
+    </div>
+
+    <p class="section-label">Хронология</p>
+    <section class="card table-wrap" aria-label="Границы выборок">
+      <table id="splits-table">
+        <thead><tr><th scope="col">Выборка</th><th scope="col">Начало</th><th scope="col">Конец</th><th scope="col">Часов</th><th scope="col">Роль</th></tr></thead>
+        <tbody>
+          <tr data-split="train"><th scope="row">Train</th><td>{{ report.splits.train.start }}</td><td>{{ report.splits.train.end }}</td><td>{{ report.splits.train.points }}</td><td>Обучение весов</td></tr>
+          <tr data-split="validation"><th scope="row">Validation</th><td>{{ report.splits.validation.start }}</td><td>{{ report.splits.validation.end }}</td><td>{{ report.splits.validation.points }}</td><td>Выбор лучшей эпохи</td></tr>
+          <tr data-split="forecast"><th scope="row">Forecast (test)</th><td>{{ report.splits.forecast.start }}</td><td>{{ report.splits.forecast.end }}</td><td>{{ report.splits.forecast.points }}</td><td>Проверка после обучения</td></tr>
+        </tbody>
+      </table>
+    </section>
+
+    <p class="section-label">Качество прогноза</p>
+    {% for stage_key, stage_title in [('validation', 'Validation · выбор лучшей эпохи'), ('forecast', 'Forecast · проверка после обучения')] %}
+    <section class="card" aria-labelledby="{{ stage_key }}-title">
+      <h2 id="{{ stage_key }}-title">{{ stage_title }}</h2>
+      <div class="table-wrap">
+        <table id="metrics-{{ stage_key }}" data-stage="{{ stage_key }}">
+          <thead><tr><th scope="col">Способ прогноза</th><th scope="col">MAE, кВт·ч ↓</th><th scope="col">MSE, (кВт·ч)² ↓</th><th scope="col">R² ↑</th></tr></thead>
+          <tbody>
+            {% for model_key, model_name in [('lstm', 'LSTM'), ('last_hour', 'Предыдущий час'), ('yesterday', 'Тот же час вчера'), ('last_week', 'Тот же час неделю назад')] %}
+            <tr data-model="{{ model_key }}">
+              <th scope="row" class="model-name">{{ model_name }}</th>
+              <td class="numeric" data-metric="mae" data-value="{{ report.metrics[stage_key][model_key].mae }}">{{ '%.3f'|format(report.metrics[stage_key][model_key].mae) }}</td>
+              <td class="numeric" data-metric="mse" data-value="{{ report.metrics[stage_key][model_key].mse }}">{{ '%.3f'|format(report.metrics[stage_key][model_key].mse) }}</td>
+              <td class="numeric" data-metric="r2" data-value="{{ report.metrics[stage_key][model_key].r2 }}">{{ '%.3f'|format(report.metrics[stage_key][model_key].r2) }}</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </section>
+    {% endfor %}
+
+    <section class="card" aria-labelledby="plots-title">
+      <h2 id="plots-title">Графики</h2>
+      {% for plot in plots %}
+      <figure>
+        <img src="{{ plot.data_uri }}" alt="{{ plot.alt }}" loading="lazy">
+        <figcaption><strong>{{ plot.title }}.</strong> {{ plot.caption }} <a href="{{ plot.data_file }}" download>Данные CSV</a> · <a href="{{ plot.file }}" download>PNG</a></figcaption>
+      </figure>
+      {% else %}
+      <p class="muted">Графики не переданы в шаблон.</p>
+      {% endfor %}
+    </section>
+
+    <div class="grid">
+      <section class="card" aria-labelledby="conclusion-title">
+        <h2 id="conclusion-title">Вывод</h2>
+        <p>{{ report.conclusion }}</p>
+        <h3>Ограничения</h3>
+        <p class="muted">{{ report.limitations }}</p>
+      </section>
+      <section class="card" aria-labelledby="repro-title">
+        <h2 id="repro-title">Воспроизводимость</h2>
+        <dl>
+          <dt>Веса модели</dt><dd>{{ report.artifacts.weights_path }}</dd>
+          <dt>Журнал</dt><dd>{{ report.artifacts.csv_path }}</dd>
+          <dt>Каталог графиков</dt><dd>{{ report.artifacts.graphs_manifest_path }}</dd>
+          <dt>Python / PyTorch</dt><dd>{{ report.software.python }} / {{ report.software.torch }}</dd>
+          <dt>NumPy / pandas</dt><dd>{{ report.software.numpy }} / {{ report.software.pandas }}</dd>
+          <dt>scikit-learn</dt><dd>{{ report.software.sklearn }}</dd>
+          <dt>Matplotlib / PyQt6</dt><dd>{{ report.software.matplotlib }} / {{ report.software.pyqt }}</dd>
+          <dt>Jinja2</dt><dd>{{ report.software.jinja2 }}</dd>
+        </dl>
+        <h3>Источники</h3>
+        <p><a href="https://www.openml.org/d/46214">OpenML Electricity 46214</a> · <a href="https://archive.ics.uci.edu/dataset/321/electricityloaddiagrams20112014">UCI Electricity Load Diagrams</a></p>
+      </section>
+    </div>
+  </main>
+
+  <footer>Данные и метрики этого отчёта доступны программно в элементе <code>#experiment-data</code>. Версия схемы: {{ report.schema_version }}.</footer>
+  <script type="application/json" id="experiment-data">{{ report | tojson }}</script>
+</body>
+</html>
